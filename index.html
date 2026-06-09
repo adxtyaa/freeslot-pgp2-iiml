@@ -756,7 +756,7 @@ function renderFrResults({dayNum,nowMins,isSunday}){
     if(!fw.busy){
       dot.classList.add('g');
       if(fw.nextCode){
-        st.innerHTML=`Next lecture ${courseHtml(fw.nextCode,fw.nextMid,fw.nextSection)}`;
+        st.innerHTML=`Next at <strong>${esc(fw.untilStr)}</strong> &middot; ${courseHtml(fw.nextCode,fw.nextMid,fw.nextSection)}`;
       } else {
         st.textContent='Free rest of the day';
       }
