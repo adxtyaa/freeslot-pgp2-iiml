@@ -6,4 +6,4 @@ Built with Codex.
 
 ## Course phase labels
 
-The compact timetable data only contains day, slot, and course code. It does not include whether a course is pre-mid, post-mid, or full-term. The app supports phase badges through the `COURSE_PHASES` map in `index.html`; update that map with verified course phases when available.
+Course badges are populated from the original timetable's `mid` and section fields. When a class has `PRE-MID` or `POST-MID` data, the app shows the section label, such as `PRE-B` or `POST-A`, next to the course code.
