@@ -207,6 +207,19 @@ html,body{
 
 .s-sub{font-size:.83rem;color:var(--muted)}
 .s-sub strong{color:var(--muted-l);font-weight:600}
+.window-meta{font-size:.76rem;color:var(--muted);margin:-2px 0 10px}
+.course-ref{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+.course-code{color:var(--muted-l);font-weight:700}
+.phase-badge{
+  display:inline-flex;align-items:center;border-radius:999px;padding:1px 6px;
+  font-size:.62rem;font-weight:800;letter-spacing:.02em;line-height:1.45;
+  border:1px solid var(--border);background:#141420;color:var(--muted-l);
+  vertical-align:middle;white-space:nowrap;
+}
+.phase-badge.pre{border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.12);color:#86efac}
+.phase-badge.post{border-color:rgba(167,139,250,.5);background:rgba(124,58,237,.16);color:#c4b5fd}
+.phase-badge.full{border-color:rgba(245,158,11,.42);background:rgba(245,158,11,.12);color:#fcd34d}
+.phase-badge.unknown{border-color:var(--border);background:#11111b;color:var(--muted)}
 
 /* Section label */
 .sec-title{font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
@@ -351,7 +364,7 @@ html,body{
       </div>
       <div class="refresh-row">
         <span class="last-chk" id="lastChk"></span>
-        <button class="btn-refresh" onclick="runResults()">&#8635; Refresh</button>
+        <button class="btn-refresh" onclick="runResults()">&#8635; Refresh window</button>
       </div>
       <div id="myStatus"></div>
       <div class="sec-title">Your Friends</div>
@@ -389,6 +402,17 @@ for (const [k,v] of Object.entries(SLOTS)) {
 }
 const DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const EOD = toMins('21:15');
+const COURSE_PHASES = {
+  // Add verified mappings here as they become available.
+  // Values: 'pre', 'post', or 'full'.
+  // Example: BDC:'pre', APPM:'post'
+};
+const PHASE_LABEL = {
+  pre:'Pre-mid',
+  post:'Post-mid',
+  full:'All term',
+  unknown:'Phase not set'
+};
 
 // ── STATE ──
 let myRoll = null;
@@ -420,6 +444,19 @@ function mk(tag,cls) {
   const e=document.createElement(tag);
   if(cls) e.className=cls;
   return e;
+}
+function coursePhase(code) {
+  return COURSE_PHASES[code] || 'unknown';
+}
+function courseHtml(code) {
+  if(!code) return '';
+  const phase=coursePhase(code);
+  return `<span class="course-ref"><strong class="course-code">${esc(code)}</strong><span class="phase-badge ${phase}">${esc(PHASE_LABEL[phase])}</span></span>`;
+}
+function windowLabel(ctx) {
+  if(ctx.isSunday) return 'Sunday';
+  if(ctx.mode==='now') return `${DAY_SHORT[ctx.dayNum]} ${fromMins(ctx.nowMins)}`;
+  return `${DAY_SHORT[ctx.dayNum]} ${fromMins(ctx.nowMins)} planned`;
 }
 
 // ── DATA HELPERS ──
@@ -677,17 +714,17 @@ function getCtx(){
   if(selDay==='now'){
     const now=new Date();
     const jsDay=now.getDay();
-    return {dayNum:jsDay, nowMins:now.getHours()*60+now.getMinutes(), isSunday:jsDay===0};
+    return {mode:'now', dayNum:jsDay, nowMins:now.getHours()*60+now.getMinutes(), isSunday:jsDay===0};
   }
   const t=document.getElementById('timeInp').value||'10:00';
-  return {dayNum:selDay, nowMins:toMins(t), isSunday:false};
+  return {mode:'planned', dayNum:selDay, nowMins:toMins(t), isSunday:false};
 }
 
 function runResults(){
   const now=new Date();
-  document.getElementById('lastChk').textContent=
-    'Checked at '+now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   const ctx=getCtx();
+  document.getElementById('lastChk').textContent=
+    `Showing ${windowLabel(ctx)} · refreshed ${now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
   renderMyStatus(ctx);
   renderFrResults(ctx);
 }
@@ -706,21 +743,24 @@ function renderMyStatus({dayNum,nowMins,isSunday}){
 
   const w=freeWindow(myRoll,dayNum,nowMins);
   const c=mk('div','status-card '+(w.busy?'busy':'free'));
+  const meta=mk('div','window-meta');
+  meta.textContent='Window: '+windowLabel({mode:selDay==='now'?'now':'planned',dayNum,nowMins,isSunday});
 
   if(w.busy){
     const left=w.until-nowMins;
-    c.innerHTML=`<div class="s-label">You're in class</div><div class="s-big">${esc(w.code)}</div><div class="s-sub">Until <strong>${esc(w.untilStr)}</strong> &mdash; ${fmtDur(left)} left</div>`;
+    c.innerHTML=`<div class="s-label">You're in class</div><div class="s-big">${courseHtml(w.code)}</div><div class="s-sub">Until <strong>${esc(w.untilStr)}</strong> &mdash; ${fmtDur(left)} left</div>`;
   } else if(nowMins>=EOD){
     c.className='status-card done';
     c.innerHTML=`<div class="s-label">Done for the day</div><div class="s-big" style="font-size:1.4rem">No more classes</div><div class="s-sub">You're free for the rest of the evening!</div>`;
   } else {
     const freeMins=w.until-nowMins;
     if(w.nextCode){
-      c.innerHTML=`<div class="s-label">You're free</div><div class="s-big">${fmtDur(freeMins)}</div><div class="s-sub">Until <strong>${esc(w.untilStr)}</strong> &mdash; <strong>${esc(w.nextCode)}</strong></div>`;
+      c.innerHTML=`<div class="s-label">You're free</div><div class="s-big">${fmtDur(freeMins)}</div><div class="s-sub">Until <strong>${esc(w.untilStr)}</strong> &mdash; ${courseHtml(w.nextCode)}</div>`;
     } else {
       c.innerHTML=`<div class="s-label">You're free</div><div class="s-big">Rest of day</div><div class="s-sub">No more classes ${selDay==='now'?'today':DAY_SHORT[dayNum]}!</div>`;
     }
   }
+  wrap.appendChild(meta);
   wrap.appendChild(c);
 }
 
@@ -771,7 +811,7 @@ function renderFrResults({dayNum,nowMins,isSunday}){
     if(!fw.busy){
       dot.classList.add('g');
       if(fw.nextCode){
-        st.innerHTML=`Free until <strong>${esc(fw.untilStr)}</strong> &mdash; <strong>${esc(fw.nextCode)}</strong>`;
+        st.innerHTML=`Free until <strong>${esc(fw.untilStr)}</strong> &mdash; ${courseHtml(fw.nextCode)}`;
       } else {
         st.textContent='Free rest of the day';
       }
@@ -786,7 +826,7 @@ function renderFrResults({dayNum,nowMins,isSunday}){
       }
     } else {
       dot.classList.add(shared>0?'y':'r');
-      st.innerHTML=`In <strong>${esc(fw.code)}</strong> until <strong>${esc(fw.untilStr)}</strong>`;
+      st.innerHTML=`In ${courseHtml(fw.code)} until <strong>${esc(fw.untilStr)}</strong>`;
       if(shared>0){
         const dur=mk('div','badge-dur y');dur.textContent=fmtDur(shared);
         const sub=mk('div','badge-sub');sub.textContent='overlap later';
@@ -967,6 +1007,11 @@ function getCombos(arr,size){
 function boot(){
   initS1();
   initS2();
+  const timeInp=document.getElementById('timeInp');
+  if(timeInp){
+    timeInp.addEventListener('change',()=>{ if(selDay!=='now') runResults(); });
+    timeInp.addEventListener('input',()=>{ if(selDay!=='now') runResults(); });
+  }
   const savedRoll=lsGet('freeslot_myRoll');
   if(savedRoll&&DATA[savedRoll]){
     myRoll=savedRoll;
