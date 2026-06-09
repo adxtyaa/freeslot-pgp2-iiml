@@ -243,47 +243,6 @@ html,body{
 .badge-dur.r{color:var(--red)}
 .badge-sub{font-size:.68rem;color:var(--muted);margin-top:2px}
 
-/* ── Group hangouts ── */
-.hangout-panel{
-  background:var(--card);border:1.5px solid var(--border);border-radius:16px;
-  padding:12px;margin-bottom:8px;
-}
-.combo-best{
-  border:1.5px solid var(--brand);border-radius:14px;background:#1e1b4b;
-  padding:13px 14px;margin-bottom:10px;
-}
-.combo-best-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px}
-.combo-best-label{font-size:.68rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--brand-l)}
-.combo-best-time{font-size:1rem;font-weight:800;color:#fff;white-space:nowrap}
-.combo-best-names{font-size:.92rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.combo-best-meta{font-size:.74rem;color:var(--muted-l);margin-top:3px}
-.combo-tabs{
-  display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;
-  margin:2px -2px 10px;padding:0 2px 2px;-webkit-overflow-scrolling:touch;
-}
-.combo-tabs::-webkit-scrollbar{display:none}
-.combo-tab{
-  flex-shrink:0;background:#141420;border:1px solid var(--border);border-radius:999px;
-  color:var(--muted-l);font-family:inherit;font-size:.74rem;font-weight:800;
-  min-height:34px;padding:0 11px;cursor:pointer;
-}
-.combo-tab.active{background:var(--brand);border-color:var(--brand);color:#fff}
-.combo-list{display:flex;flex-direction:column;gap:7px}
-.combo-card{
-  background:#151521;border:1px solid var(--border);border-radius:12px;
-  padding:10px 12px;display:flex;align-items:center;gap:10px;
-}
-.combo-info{flex:1;min-width:0}
-.combo-names{font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.combo-count{font-size:.7rem;color:var(--muted);margin-top:2px}
-.combo-dur{font-size:.86rem;font-weight:800;color:var(--brand-l);flex-shrink:0;white-space:nowrap}
-.combo-more{
-  width:100%;background:#141420;border:1px solid var(--border);color:var(--muted-l);
-  border-radius:10px;min-height:38px;font-family:inherit;font-size:.76rem;font-weight:800;
-  cursor:pointer;margin-top:8px;
-}
-.combo-more:hover{color:var(--text);border-color:var(--brand-l)}
-
 /* ── Empty states ── */
 .empty-state{
   text-align:center;padding:22px 16px;color:var(--muted);font-size:.85rem;
@@ -365,10 +324,8 @@ html,body{
         <button class="btn-refresh" onclick="runResults()">&#8635; Refresh window</button>
       </div>
       <div id="myStatus"></div>
-      <div class="sec-title">Your Friends</div>
+      <div class="sec-title">Friends now</div>
       <div id="frResults"></div>
-      <div class="sec-title">Who can hang out?</div>
-      <div id="combosWrap"></div>
       <div style="height:8px"></div>
     </div>
 
@@ -499,13 +456,6 @@ function freeWindow(roll,dayNum,nowMins) {
   const next=cls.find(c=>c.start>nowMins);
   if (next) return {busy:false,until:next.start,untilStr:next.startStr,nextCode:next.code,nextMid:next.mid,nextSection:next.section};
   return {busy:false,until:EOD,untilStr:'21:15',nextCode:null};
-}
-
-function sharedMins(userW,friendW,nowMins) {
-  if (userW.busy) return 0;
-  if (friendW.busy)
-    return friendW.until<userW.until ? userW.until-friendW.until : 0;
-  return Math.max(0, Math.min(userW.until,friendW.until)-nowMins);
 }
 
 // ── SEARCH INDEX ──
@@ -749,14 +699,14 @@ function renderMyStatus({dayNum,nowMins,isSunday}){
 
   if(w.busy){
     const left=w.until-nowMins;
-    c.innerHTML=`<div class="s-label">You're in class</div><div class="s-big">${courseHtml(w.code,w.mid,w.section)}</div><div class="s-sub">Until <strong>${esc(w.untilStr)}</strong> &mdash; ${fmtDur(left)} left</div>`;
+    c.innerHTML=`<div class="s-label">You're in class</div><div class="s-big">${courseHtml(w.code,w.mid,w.section)}</div><div class="s-sub">Free in <strong>${esc(fmtDur(left))}</strong></div>`;
   } else if(nowMins>=EOD){
     c.className='status-card done';
     c.innerHTML=`<div class="s-label">Done for the day</div><div class="s-big" style="font-size:1.4rem">No more classes</div><div class="s-sub">You're free for the rest of the evening!</div>`;
   } else {
     const freeMins=w.until-nowMins;
     if(w.nextCode){
-      c.innerHTML=`<div class="s-label">You're free</div><div class="s-big">${fmtDur(freeMins)}</div><div class="s-sub">Until <strong>${esc(w.untilStr)}</strong> &mdash; ${courseHtml(w.nextCode,w.nextMid,w.nextSection)}</div>`;
+      c.innerHTML=`<div class="s-label">You're free for</div><div class="s-big">${fmtDur(freeMins)}</div><div class="s-sub">Before your next lecture ${courseHtml(w.nextCode,w.nextMid,w.nextSection)}</div>`;
     } else {
       c.innerHTML=`<div class="s-label">You're free</div><div class="s-big">Rest of day</div><div class="s-sub">No more classes ${selDay==='now'?'today':DAY_SHORT[dayNum]}!</div>`;
     }
@@ -767,24 +717,19 @@ function renderMyStatus({dayNum,nowMins,isSunday}){
 
 function renderFrResults({dayNum,nowMins,isSunday}){
   const frWrap=document.getElementById('frResults');
-  const cWrap=document.getElementById('combosWrap');
-  frWrap.innerHTML='';cWrap.innerHTML='';
+  frWrap.innerHTML='';
 
   if(isSunday){
     frWrap.innerHTML='<div class="empty-state"><div class="empty-icon">&#128197;</div>No classes on Sunday &mdash; everyone\'s off!</div>';
     return;
   }
 
-  const myW=freeWindow(myRoll,dayNum,nowMins);
-  const myInClass=myW.busy;
-
   const rows=[];
   for(const roll of groupRolls){
     const s=getStudent(roll);
     if(!s) continue;
     const fw=freeWindow(roll,dayNum,nowMins);
-    const shared=sharedMins(myW,fw,nowMins);
-    rows.push({roll,name:s.name,fw,shared});
+    rows.push({name:s.name,fw});
   }
 
   if(!rows.length){
@@ -796,12 +741,11 @@ function renderFrResults({dayNum,nowMins,isSunday}){
     const af=!a.fw.busy,bf=!b.fw.busy;
     if(af&&!bf) return -1;
     if(!af&&bf) return 1;
-    return b.shared-a.shared;
+    if(af&&bf) return a.name.localeCompare(b.name);
+    return a.fw.until-b.fw.until;
   });
 
-  const freeNow=[];
-
-  for(const {roll,name,fw,shared} of rows){
+  for(const {name,fw} of rows){
     const card=mk('div','fr-card');
     const dot=mk('div','fr-dot');
     const info=mk('div','fr-info');
@@ -812,196 +756,26 @@ function renderFrResults({dayNum,nowMins,isSunday}){
     if(!fw.busy){
       dot.classList.add('g');
       if(fw.nextCode){
-        st.innerHTML=`Free until <strong>${esc(fw.untilStr)}</strong> &mdash; ${courseHtml(fw.nextCode,fw.nextMid,fw.nextSection)}`;
+        st.innerHTML=`Next lecture ${courseHtml(fw.nextCode,fw.nextMid,fw.nextSection)}`;
       } else {
         st.textContent='Free rest of the day';
       }
-      if(shared>=1){
-        const dur=mk('div','badge-dur');dur.textContent=fmtDur(shared);
-        const sub=mk('div','badge-sub');sub.textContent='together';
-        badge.appendChild(dur);badge.appendChild(sub);
-        if(!myInClass) freeNow.push({roll,name,freeUntil:fw.until});
-      } else {
-        const dur=mk('div','badge-dur r');dur.textContent='no overlap';
-        badge.appendChild(dur);
-      }
+      const dur=mk('div','badge-dur');dur.textContent='Free';
+      const sub=mk('div','badge-sub');sub.textContent='now';
+      badge.appendChild(dur);badge.appendChild(sub);
     } else {
-      dot.classList.add(shared>0?'y':'r');
-      st.innerHTML=`In ${courseHtml(fw.code,fw.mid,fw.section)} until <strong>${esc(fw.untilStr)}</strong>`;
-      if(shared>0){
-        const dur=mk('div','badge-dur y');dur.textContent=fmtDur(shared);
-        const sub=mk('div','badge-sub');sub.textContent='overlap later';
-        badge.appendChild(dur);badge.appendChild(sub);
-      } else {
-        const dur=mk('div','badge-dur r');dur.textContent='Busy';
-        badge.appendChild(dur);
-      }
+      dot.classList.add('r');
+      const wait=Math.max(0,fw.until-nowMins);
+      st.innerHTML=`In ${courseHtml(fw.code,fw.mid,fw.section)}`;
+      const dur=mk('div','badge-dur r');dur.textContent=fmtDur(wait);
+      const sub=mk('div','badge-sub');sub.textContent='to free';
+      badge.appendChild(dur);badge.appendChild(sub);
     }
 
     info.appendChild(nm);info.appendChild(st);
     card.appendChild(dot);card.appendChild(info);card.appendChild(badge);
     frWrap.appendChild(card);
   }
-
-  if(myInClass){
-    cWrap.innerHTML='<div class="empty-state"><div class="empty-icon">&#9200;</div>Check back when your class ends!</div>';
-    return;
-  }
-  if(!freeNow.length){
-    cWrap.innerHTML='<div class="empty-state"><div class="empty-icon">&#128564;</div>Everyone\'s in class right now.</div>';
-    return;
-  }
-
-  const myEntry={roll:myRoll,name:getStudent(myRoll).name,freeUntil:myW.until};
-  renderCombos([myEntry,...freeNow],nowMins,cWrap);
-}
-
-function renderCombos(members,nowMins,wrap){
-  const combos=buildHangoutCombos(members,nowMins);
-  if(!combos.length){
-    wrap.innerHTML='<div class="empty-state"><div class="empty-icon">&#128336;</div>No overlapping free windows of 15+ min right now.</div>';
-    return;
-  }
-
-  const panel=mk('div','hangout-panel');
-  const best=combos[0];
-  const bestCard=mk('div','combo-best');
-  bestCard.innerHTML=`
-    <div class="combo-best-top">
-      <div class="combo-best-label">Best hangout</div>
-      <div class="combo-best-time">${esc(fmtDur(best.mins))}</div>
-    </div>
-    <div class="combo-best-names">${esc(comboNames(best))}</div>
-    <div class="combo-best-meta">${best.size} people together</div>
-  `;
-  panel.appendChild(bestCard);
-
-  const availableSizes=[...new Set(combos.map(c=>c.bucket))].sort((a,b)=>{
-    if(a==='5+') return 1;
-    if(b==='5+') return -1;
-    return Number(a)-Number(b);
-  });
-  const tabs=mk('div','combo-tabs');
-  const list=mk('div','combo-list');
-  let active='all';
-  let expanded=false;
-
-  function addTab(key,label){
-    const btn=mk('button','combo-tab');
-    btn.type='button';
-    btn.dataset.comboFilter=key;
-    btn.textContent=label;
-    btn.addEventListener('click',()=>{
-      active=key;
-      expanded=false;
-      paint();
-    });
-    tabs.appendChild(btn);
-  }
-
-  addTab('all','Best');
-  availableSizes.forEach(size=>{
-    const count=combos.filter(c=>c.bucket===size).length;
-    addTab(String(size),`${size} (${count})`);
-  });
-
-  function paint(){
-    tabs.querySelectorAll('.combo-tab').forEach(btn=>{
-      btn.classList.toggle('active',btn.dataset.comboFilter===active);
-    });
-    const filtered=active==='all' ? combos : combos.filter(c=>String(c.bucket)===active);
-    const visible=filtered.slice(0,expanded ? 12 : 4);
-    list.innerHTML='';
-    visible.forEach(combo=>list.appendChild(renderComboCard(combo)));
-    if(filtered.length>visible.length){
-      const more=mk('button','combo-more');
-      more.type='button';
-      more.textContent=`Show ${Math.min(8,filtered.length-visible.length)} more`;
-      more.addEventListener('click',()=>{
-        expanded=true;
-        paint();
-      });
-      list.appendChild(more);
-    }
-  }
-
-  panel.appendChild(tabs);
-  panel.appendChild(list);
-  wrap.appendChild(panel);
-  paint();
-}
-
-function buildHangoutCombos(members,nowMins){
-  const user=members[0];
-  const friends=members.slice(1).sort((a,b)=>b.freeUntil-a.freeUntil);
-  const combos=[];
-  const allMembers=[user,...friends];
-  const fullMins=Math.min(...allMembers.map(m=>m.freeUntil))-nowMins;
-
-  if(allMembers.length>=2&&fullMins>=15){
-    combos.push({grp:allMembers,mins:fullMins,size:allMembers.length,bucket:bucketForSize(allMembers.length),full:true});
-  }
-
-  for(let size=2;size<=Math.min(4,allMembers.length);size++){
-    const groups=getCombos(friends,size-1)
-      .map(friendGroup=>[user,...friendGroup])
-      .map(grp=>({grp,mins:Math.min(...grp.map(m=>m.freeUntil))-nowMins,size,bucket:String(size)}))
-      .filter(c=>c.mins>=15)
-      .sort((a,b)=>b.mins-a.mins);
-    combos.push(...groups.slice(0,16));
-  }
-
-  if(allMembers.length>=5){
-    const strongestLarge=[user,...friends.slice(0,4)];
-    const largeMins=Math.min(...strongestLarge.map(m=>m.freeUntil))-nowMins;
-    if(largeMins>=15){
-      combos.push({grp:strongestLarge,mins:largeMins,size:5,bucket:'5+'});
-    }
-  }
-
-  const seen=new Set();
-  return combos
-    .sort((a,b)=>b.size-a.size||b.mins-a.mins)
-    .filter(combo=>{
-      const key=combo.grp.map(m=>m.roll).sort().join('|');
-      if(seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-
-function renderComboCard(combo){
-  const card=mk('div','combo-card');
-  const info=mk('div','combo-info');
-  const names=mk('div','combo-names');
-  names.textContent=comboNames(combo);
-  const count=mk('div','combo-count');
-  count.textContent=combo.full ? 'Everyone free together' : combo.size+' people';
-  info.appendChild(names);info.appendChild(count);
-  const dur=mk('div','combo-dur');
-  dur.textContent=fmtDur(combo.mins);
-  card.appendChild(info);
-  card.appendChild(dur);
-  return card;
-}
-
-function comboNames(combo){
-  return combo.grp.map((m,i)=>i===0?'You':titleCase(m.name).split(' ')[0]).join(' + ');
-}
-
-function bucketForSize(size){
-  return size>=5 ? '5+' : String(size);
-}
-
-function getCombos(arr,size){
-  if(size===0) return [[]];
-  if(size===1) return arr.map(x=>[x]);
-  if(size>arr.length) return [];
-  const out=[];
-  for(let i=0;i<=arr.length-size;i++){
-    getCombos(arr.slice(i+1),size-1).forEach(rest=>out.push([arr[i],...rest]));
-  }
-  return out;
 }
 
 // ── BOOT ──
