@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Find which of your friends are free right now — IIM Lucknow PGP Term IV timetable.">
+<meta name="theme-color" content="#0d0d14">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%237c3aed'/%3E%3Ctext x='50' y='72' font-size='62' font-family='sans-serif' font-weight='800' fill='%23fff' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E">
 <title>FreeSlot — IIM Lucknow Term IV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -489,6 +492,34 @@ function search(q,exclude) {
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 
+// ── ANALYTICS ──
+// Anonymous usage counters (no PII, just increments) via abacus.jasoncameron.dev.
+// Read back by dashboard.html. Only active on the deployed site, so local dev
+// doesn't pollute the numbers. Day keys use IST regardless of device timezone.
+const A_NS='freeslot-pgp2-iiml';
+const A_ON=/\.github\.io$/.test(location.hostname);
+function aDate(){
+  try{return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});}
+  catch(e){return new Date().toISOString().slice(0,10);}
+}
+function aHit(key){
+  if(!A_ON) return;
+  try{fetch('https://abacus.jasoncameron.dev/hit/'+A_NS+'/'+key,{keepalive:true}).catch(()=>{});}catch(e){}
+}
+function trackVisit(){
+  const today=aDate();
+  aHit('pv-total'); aHit('pv-'+today);
+  if(lsGet('freeslot_counted')!=='1'){aHit('users-total');lsSet('freeslot_counted','1');}
+  if(lsGet('freeslot_lastActive')!==today){aHit('dau-'+today);lsSet('freeslot_lastActive',today);}
+}
+let _lastRunPing=0;
+function trackRun(){
+  const t=Date.now();
+  if(t-_lastRunPing<5000) return; // collapse bursts (e.g. scrubbing the time picker)
+  _lastRunPing=t;
+  aHit('runs-total'); aHit('runs-'+aDate());
+}
+
 // ── AUTOCOMPLETE ──
 function mkAC(inpId,ddId,excludeFn,onSelect) {
   const inp=document.getElementById(inpId);
@@ -504,7 +535,7 @@ function mkAC(inpId,ddId,excludeFn,onSelect) {
     if(!dd.classList.contains('open')) return;
     if(e.key==='ArrowDown'){e.preventDefault();focused=Math.min(focused+1,results.length-1);render();}
     else if(e.key==='ArrowUp'){e.preventDefault();focused=Math.max(focused-1,-1);render();}
-    else if(e.key==='Enter'){e.preventDefault();if(results[focused])pick(results[focused]);}
+    else if(e.key==='Enter'){e.preventDefault();const t=results[focused>=0?focused:0];if(t)pick(t);}
     else if(e.key==='Escape')close();
   });
 
@@ -671,13 +702,14 @@ function getCtx(){
   return {mode:'planned', dayNum:selDay, nowMins:toMins(t), isSunday:false};
 }
 
-function runResults(){
+function runResults(auto){
   const now=new Date();
   const ctx=getCtx();
   document.getElementById('lastChk').textContent=
     `Showing ${windowLabel(ctx)} · refreshed ${now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
   renderMyStatus(ctx);
   renderFrResults(ctx);
+  if(auto!==true) trackRun();
 }
 
 function renderMyStatus({dayNum,nowMins,isSunday}){
@@ -787,6 +819,17 @@ function boot(){
     timeInp.addEventListener('change',()=>{ if(selDay!=='now') runResults(); });
     timeInp.addEventListener('input',()=>{ if(selDay!=='now') runResults(); });
   }
+  // Keep the "Now" view fresh while the tab stays open or is returned to.
+  function autoRefresh(){
+    if(document.hidden||selDay!=='now') return;
+    if(!document.getElementById('s3').classList.contains('active')) return;
+    runResults(true);
+  }
+  document.addEventListener('visibilitychange',autoRefresh);
+  setInterval(autoRefresh,60000);
+
+  trackVisit();
+
   const savedRoll=lsGet('freeslot_myRoll');
   if(savedRoll&&DATA[savedRoll]){
     myRoll=savedRoll;

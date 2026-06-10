@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0d0d14">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%237c3aed'/%3E%3Ctext x='50' y='72' font-size='62' font-family='sans-serif' font-weight='800' fill='%23fff' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E">
+<title>FreeSlot — Usage Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d14; --card:#1a1a26; --card2:#22223a; --border:#2a2a3e;
+  --green:#22c55e; --red:#ef4444; --yellow:#f59e0b;
+  --brand:#7c3aed; --brand-l:#a78bfa;
+  --text:#f0f0f8; --muted:#888899; --muted-l:#aaaabc;
+}
+html,body{
+  background:var(--bg); color:var(--text);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size:16px; line-height:1.5; min-height:100dvh;
+  -webkit-font-smoothing:antialiased;
+}
+.app{max-width:720px;margin:0 auto;padding:0 16px 40px}
+
+.hdr{padding:22px 0 6px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.hdr h1{font-size:1.3rem;font-weight:800;letter-spacing:-.5px;line-height:1}
+.hdr h1 span{color:var(--brand-l)}
+.hdr p{font-size:.7rem;color:var(--muted);margin-top:3px}
+.hdr-acts{display:flex;gap:6px;align-items:center}
+
+.btn{
+  background:var(--card);border:1px solid var(--border);color:var(--muted-l);
+  font-size:.75rem;font-weight:600;padding:0 12px;border-radius:8px;cursor:pointer;
+  font-family:inherit;min-height:34px;transition:all .15s;white-space:nowrap;
+}
+.btn:hover{background:var(--card2);color:var(--text);border-color:var(--brand-l)}
+.btn.active{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.range-row{display:flex;gap:6px;align-items:center;padding:12px 0 4px;flex-wrap:wrap}
+.range-label{font-size:.72rem;color:var(--muted);font-weight:600;margin-right:2px}
+
+.status-line{
+  display:flex;align-items:center;gap:10px;margin:10px 0 4px;min-height:22px;
+  font-size:.72rem;color:var(--muted);
+}
+.prog{
+  flex:1;max-width:220px;height:4px;background:var(--card2);border-radius:2px;overflow:hidden;
+  display:none;
+}
+.prog.on{display:block}
+.prog-bar{height:100%;width:0;background:var(--brand-l);border-radius:2px;transition:width .3s}
+.err{color:var(--red)}
+
+/* Summary cards */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px}
+@media(max-width:520px){.cards{grid-template-columns:repeat(2,1fr)}}
+.card{
+  background:var(--card);border:1.5px solid var(--border);border-radius:14px;
+  padding:14px 16px;position:relative;overflow:hidden;
+}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--brand)}
+.card.g::before{background:var(--green)}
+.card.y::before{background:var(--yellow)}
+.card-label{font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.card-val{font-size:1.7rem;font-weight:800;letter-spacing:-1px;line-height:1}
+.card-sub{font-size:.68rem;color:var(--muted);margin-top:5px}
+
+/* Sections */
+.sec-title{font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px}
+
+/* Chart */
+.chart-card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:16px}
+.chart{display:flex;align-items:flex-end;gap:3px;height:120px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;gap:4px}
+.bar-val{font-size:.6rem;color:var(--muted-l);font-weight:700;line-height:1}
+.bar{
+  width:100%;max-width:34px;border-radius:4px 4px 0 0;background:var(--brand);
+  min-height:2px;transition:height .3s;
+}
+.bar.zero{background:var(--card2)}
+.bar.today{background:var(--brand-l)}
+.chart-x{display:flex;gap:3px;margin-top:6px}
+.x-lbl{flex:1;text-align:center;font-size:.56rem;color:var(--muted);overflow:hidden;white-space:nowrap}
+
+/* Table */
+.tbl-wrap{background:var(--card);border:1.5px solid var(--border);border-radius:14px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+th,td{padding:9px 14px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{
+  font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);border-bottom:1px solid var(--border);
+}
+td{border-bottom:1px solid var(--border);color:var(--muted-l)}
+tr:last-child td{border-bottom:none}
+td:first-child{color:var(--text);font-weight:600}
+tr.today-row td{color:var(--text)}
+tr.today-row td:first-child::after{content:' · today';color:var(--brand-l);font-size:.62rem;font-weight:700}
+
+.note{font-size:.68rem;color:var(--muted);margin-top:18px;line-height:1.6}
+.note strong{color:var(--muted-l)}
+.footer{padding:20px 0 0;text-align:center}
+.footer a{color:var(--brand-l);text-decoration:none;font-size:.7rem}
+.footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="hdr">
+    <div>
+      <h1>Free<span>Slot</span> · Dashboard</h1>
+      <p>Anonymous usage metrics · times in IST</p>
+    </div>
+    <div class="hdr-acts">
+      <button class="btn" id="btnReload" onclick="load()">&#8635; Refresh</button>
+    </div>
+  </header>
+
+  <div class="range-row">
+    <span class="range-label">Range:</span>
+    <button class="btn range-btn active" data-days="7" onclick="setRange(7,this)">7 days</button>
+    <button class="btn range-btn" data-days="14" onclick="setRange(14,this)">14 days</button>
+    <button class="btn range-btn" data-days="30" onclick="setRange(30,this)">30 days</button>
+  </div>
+
+  <div class="status-line">
+    <span id="statusTxt"></span>
+    <div class="prog" id="prog"><div class="prog-bar" id="progBar"></div></div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="sec-title">Daily active users</div>
+  <div class="chart-card" id="chartDau"></div>
+
+  <div class="sec-title">Jobs run per day</div>
+  <div class="chart-card" id="chartRuns"></div>
+
+  <div class="sec-title">Page loads per day</div>
+  <div class="chart-card" id="chartPv"></div>
+
+  <div class="sec-title">Daily breakdown</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>DAU</th><th>Jobs run</th><th>Page loads</th></tr></thead>
+      <tbody id="tblBody"></tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>How these are measured:</strong> counters are stored in abacus.jasoncameron.dev
+    (anonymous increments, no personal data). <strong>Unique users</strong> counts devices on
+    first-ever visit (clearing browser storage re-counts a device). <strong>DAU</strong> counts
+    each device once per IST calendar day. <strong>Jobs run</strong> counts user-triggered
+    free-slot lookups (page open on results, day/time changes, manual refresh), with bursts
+    within 5 seconds collapsed into one. Counting started when analytics was deployed —
+    earlier usage is not included. Larger ranges load in batches because the counter API
+    allows 30 requests per 10 seconds.
+  </div>
+
+  <div class="footer"><a href="./">&#8592; Back to FreeSlot</a></div>
+</div>
+
+<script>
+// ?ns=<namespace> overrides the counter namespace (handy for testing)
+const NS=new URLSearchParams(location.search).get('ns')||'freeslot-pgp2-iiml';
+const API='https://abacus.jasoncameron.dev/get/'+encodeURIComponent(NS)+'/';
+let rangeDays=7;
+let loading=false;
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function istDate(offsetDays){
+  // YYYY-MM-DD in IST, offsetDays back from today
+  const d=new Date(Date.now()-offsetDays*86400000);
+  try{return d.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});}
+  catch(e){return d.toISOString().slice(0,10);}
+}
+function shortLbl(iso){
+  const [,m,dd]=iso.split('-');
+  return Number(dd)+'/'+Number(m);
+}
+function fmt(n){return n==null?'—':n.toLocaleString('en-IN');}
+
+async function getVal(key,attempt){
+  attempt=attempt||0;
+  let r;
+  try{ r=await fetch(API+key); }
+  catch(e){
+    if(attempt<2){await sleep(3000);return getVal(key,attempt+1);}
+    throw new Error('network');
+  }
+  if(r.status===404) return 0;          // counter never incremented yet
+  if(r.status===429){                   // rate-limited: wait out the window
+    await sleep(11000);
+    return getVal(key,attempt);
+  }
+  if(!r.ok){
+    if(attempt<2){await sleep(3000);return getVal(key,attempt+1);}
+    throw new Error('HTTP '+r.status);
+  }
+  const j=await r.json();
+  return j.value||0;
+}
+
+// Fetch keys in batches that stay under the API's 30-req/10s limit.
+async function fetchAll(keys,onProgress){
+  const BATCH=24, out={};
+  for(let i=0;i<keys.length;i+=BATCH){
+    if(i>0) await sleep(10500);
+    const chunk=keys.slice(i,i+BATCH);
+    const vals=await Promise.all(chunk.map(k=>getVal(k)));
+    chunk.forEach((k,j)=>out[k]=vals[j]);
+    onProgress(Math.min(i+BATCH,keys.length),keys.length);
+  }
+  return out;
+}
+
+function setRange(days,btn){
+  if(loading) return;
+  rangeDays=days;
+  document.querySelectorAll('.range-btn').forEach(b=>b.classList.toggle('active',b===btn));
+  load();
+}
+
+function renderCards(t){
+  const c=document.getElementById('cards');
+  c.innerHTML='';
+  const items=[
+    {label:'Unique users',val:t['users-total'],sub:'all-time devices',cls:'g'},
+    {label:'Jobs run',val:t['runs-total'],sub:'all-time lookups',cls:''},
+    {label:'Page loads',val:t['pv-total'],sub:'all-time',cls:'y'},
+    {label:'Active today',val:t.dauToday,sub:'DAU · '+istDate(0),cls:'g'},
+    {label:'Runs today',val:t.runsToday,sub:istDate(0),cls:''},
+    {label:'Loads today',val:t.pvToday,sub:istDate(0),cls:'y'},
+  ];
+  for(const it of items){
+    const d=document.createElement('div');
+    d.className='card '+it.cls;
+    d.innerHTML='<div class="card-label">'+it.label+'</div>'
+      +'<div class="card-val">'+fmt(it.val)+'</div>'
+      +'<div class="card-sub">'+it.sub+'</div>';
+    c.appendChild(d);
+  }
+}
+
+function renderChart(elId,days,vals){
+  const el=document.getElementById(elId);
+  el.innerHTML='';
+  const max=Math.max(1,...vals);
+  const chart=document.createElement('div');chart.className='chart';
+  const xRow=document.createElement('div');xRow.className='chart-x';
+  days.forEach((d,i)=>{
+    const col=document.createElement('div');col.className='bar-col';
+    const v=document.createElement('div');v.className='bar-val';v.textContent=vals[i];
+    const bar=document.createElement('div');
+    bar.className='bar'+(vals[i]===0?' zero':'')+(i===days.length-1?' today':'');
+    bar.style.height=Math.max(2,Math.round(vals[i]/max*100))+'%';
+    col.appendChild(v);col.appendChild(bar);chart.appendChild(col);
+    const x=document.createElement('div');x.className='x-lbl';
+    x.textContent=(days.length>14 && i%2===1 && i!==days.length-1)?'':shortLbl(d);
+    xRow.appendChild(x);
+  });
+  el.appendChild(chart);el.appendChild(xRow);
+}
+
+function renderTable(days,dau,runs,pv){
+  const tb=document.getElementById('tblBody');
+  tb.innerHTML='';
+  for(let i=days.length-1;i>=0;i--){
+    const tr=document.createElement('tr');
+    if(i===days.length-1) tr.className='today-row';
+    tr.innerHTML='<td>'+days[i]+'</td><td>'+fmt(dau[i])+'</td><td>'+fmt(runs[i])+'</td><td>'+fmt(pv[i])+'</td>';
+    tb.appendChild(tr);
+  }
+}
+
+async function load(){
+  if(loading) return;
+  loading=true;
+  const st=document.getElementById('statusTxt');
+  const prog=document.getElementById('prog');
+  const bar=document.getElementById('progBar');
+  const btns=document.querySelectorAll('.btn');
+  btns.forEach(b=>b.disabled=true);
+  st.className='';st.textContent='Loading…';
+  prog.classList.add('on');bar.style.width='0%';
+
+  // Oldest → newest, today last
+  const days=[];
+  for(let i=rangeDays-1;i>=0;i--) days.push(istDate(i));
+
+  const keys=['users-total','runs-total','pv-total'];
+  for(const d of days) keys.push('dau-'+d,'runs-'+d,'pv-'+d);
+
+  try{
+    const vals=await fetchAll(keys,(done,total)=>{
+      bar.style.width=Math.round(done/total*100)+'%';
+      st.textContent='Loading… '+done+'/'+total+(total>24?' (rate-limited API, please wait)':'');
+    });
+    const today=istDate(0);
+    renderCards({
+      'users-total':vals['users-total'],
+      'runs-total':vals['runs-total'],
+      'pv-total':vals['pv-total'],
+      dauToday:vals['dau-'+today],
+      runsToday:vals['runs-'+today],
+      pvToday:vals['pv-'+today],
+    });
+    const dau=days.map(d=>vals['dau-'+d]);
+    const runs=days.map(d=>vals['runs-'+d]);
+    const pv=days.map(d=>vals['pv-'+d]);
+    renderChart('chartDau',days,dau);
+    renderChart('chartRuns',days,runs);
+    renderChart('chartPv',days,pv);
+    renderTable(days,dau,runs,pv);
+    st.textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  }catch(e){
+    st.className='err';
+    st.textContent='Failed to load metrics ('+e.message+'). Try refreshing.';
+  }finally{
+    prog.classList.remove('on');
+    btns.forEach(b=>b.disabled=false);
+    loading=false;
+  }
+}
+
+load();
+</script>
+</body>
+</html>
