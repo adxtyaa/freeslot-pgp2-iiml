@@ -138,8 +138,14 @@ tr.today-row td:first-child::after{content:' · today';color:var(--brand-l);font
   <div class="sec-title">Daily active users</div>
   <div class="chart-card" id="chartDau"></div>
 
+  <div class="sec-title">Visits per day</div>
+  <div class="chart-card" id="chartVisits"></div>
+
   <div class="sec-title">Jobs run per day</div>
   <div class="chart-card" id="chartRuns"></div>
+
+  <div class="sec-title">Time on page per day (minutes)</div>
+  <div class="chart-card" id="chartTime"></div>
 
   <div class="sec-title">Page loads per day</div>
   <div class="chart-card" id="chartPv"></div>
@@ -147,7 +153,7 @@ tr.today-row td:first-child::after{content:' · today';color:var(--brand-l);font
   <div class="sec-title">Daily breakdown</div>
   <div class="tbl-wrap">
     <table>
-      <thead><tr><th>Date</th><th>DAU</th><th>Jobs run</th><th>Page loads</th></tr></thead>
+      <thead><tr><th>Date</th><th>DAU</th><th>Visits</th><th>Jobs run</th><th>Page loads</th><th>Time spent</th></tr></thead>
       <tbody id="tblBody"></tbody>
     </table>
   </div>
@@ -156,11 +162,14 @@ tr.today-row td:first-child::after{content:' · today';color:var(--brand-l);font
     <strong>How these are measured:</strong> counters are stored in abacus.jasoncameron.dev
     (anonymous increments, no personal data). <strong>Unique users</strong> counts devices on
     first-ever visit (clearing browser storage re-counts a device). <strong>DAU</strong> counts
-    each device once per IST calendar day. <strong>Jobs run</strong> counts user-triggered
-    free-slot lookups (page open on results, day/time changes, manual refresh), with bursts
-    within 5 seconds collapsed into one. Counting started when analytics was deployed —
-    earlier usage is not included. Larger ranges load in batches because the counter API
-    allows 30 requests per 10 seconds.
+    each device once per IST calendar day. <strong>Visits</strong> counts a page load or a
+    return to an already-open tab after 5+ minutes away — i.e. each time someone actually
+    checks the "Now" view. <strong>Jobs run</strong> counts user-triggered free-slot lookups
+    (page open on results, day/time changes, manual refresh), with bursts within 5 seconds
+    collapsed into one. <strong>Time on page</strong> accrues in 30-second ticks only while
+    the tab is visible in the foreground; background tabs don't count. Counting started when
+    analytics was deployed — earlier usage is not included. Larger ranges load in batches
+    because the counter API allows 30 requests per 10 seconds.
   </div>
 
   <div class="footer"><a href="./">&#8592; Back to FreeSlot</a></div>
@@ -186,6 +195,14 @@ function shortLbl(iso){
   return Number(dd)+'/'+Number(m);
 }
 function fmt(n){return n==null?'—':n.toLocaleString('en-IN');}
+// Time counters tick once per 30 visible seconds → minutes for display
+function ticksToMins(t){return Math.round((t||0)/2);}
+function fmtMins(mins){
+  if(mins==null) return '—';
+  if(mins<60) return mins+' min';
+  const h=Math.floor(mins/60), r=mins%60;
+  return r? h+' hr '+r+' min' : h+' hr';
+}
 
 async function getVal(key,attempt){
   attempt=attempt||0;
@@ -231,19 +248,24 @@ function setRange(days,btn){
 function renderCards(t){
   const c=document.getElementById('cards');
   c.innerHTML='';
+  const timeTotalMins=ticksToMins(t['time-total']);
+  const timeTodayMins=ticksToMins(t.timeToday);
+  const avgVisit=t.visitsToday>0? Math.round(timeTodayMins/t.visitsToday*10)/10 : null;
   const items=[
-    {label:'Unique users',val:t['users-total'],sub:'all-time devices',cls:'g'},
-    {label:'Jobs run',val:t['runs-total'],sub:'all-time lookups',cls:''},
-    {label:'Page loads',val:t['pv-total'],sub:'all-time',cls:'y'},
-    {label:'Active today',val:t.dauToday,sub:'DAU · '+istDate(0),cls:'g'},
-    {label:'Runs today',val:t.runsToday,sub:istDate(0),cls:''},
-    {label:'Loads today',val:t.pvToday,sub:istDate(0),cls:'y'},
+    {label:'Unique users',val:fmt(t['users-total']),sub:'all-time devices',cls:'g'},
+    {label:'Visits',val:fmt(t['visits-total']),sub:'all-time check-ins',cls:''},
+    {label:'Jobs run',val:fmt(t['runs-total']),sub:'all-time lookups',cls:''},
+    {label:'Page loads',val:fmt(t['pv-total']),sub:'all-time · '+fmtMins(timeTotalMins)+' on page',cls:'y'},
+    {label:'Active today',val:fmt(t.dauToday),sub:'DAU · '+istDate(0),cls:'g'},
+    {label:'Visits today',val:fmt(t.visitsToday),sub:istDate(0),cls:''},
+    {label:'Runs today',val:fmt(t.runsToday),sub:istDate(0),cls:''},
+    {label:'Time today',val:fmtMins(timeTodayMins),sub:avgVisit!=null?('≈'+avgVisit+' min / visit'):istDate(0),cls:'y'},
   ];
   for(const it of items){
     const d=document.createElement('div');
     d.className='card '+it.cls;
     d.innerHTML='<div class="card-label">'+it.label+'</div>'
-      +'<div class="card-val">'+fmt(it.val)+'</div>'
+      +'<div class="card-val">'+it.val+'</div>'
       +'<div class="card-sub">'+it.sub+'</div>';
     c.appendChild(d);
   }
@@ -269,13 +291,14 @@ function renderChart(elId,days,vals){
   el.appendChild(chart);el.appendChild(xRow);
 }
 
-function renderTable(days,dau,runs,pv){
+function renderTable(days,dau,visits,runs,pv,timeMins){
   const tb=document.getElementById('tblBody');
   tb.innerHTML='';
   for(let i=days.length-1;i>=0;i--){
     const tr=document.createElement('tr');
     if(i===days.length-1) tr.className='today-row';
-    tr.innerHTML='<td>'+days[i]+'</td><td>'+fmt(dau[i])+'</td><td>'+fmt(runs[i])+'</td><td>'+fmt(pv[i])+'</td>';
+    tr.innerHTML='<td>'+days[i]+'</td><td>'+fmt(dau[i])+'</td><td>'+fmt(visits[i])+'</td>'
+      +'<td>'+fmt(runs[i])+'</td><td>'+fmt(pv[i])+'</td><td>'+fmtMins(timeMins[i])+'</td>';
     tb.appendChild(tr);
   }
 }
@@ -295,8 +318,8 @@ async function load(){
   const days=[];
   for(let i=rangeDays-1;i>=0;i--) days.push(istDate(i));
 
-  const keys=['users-total','runs-total','pv-total'];
-  for(const d of days) keys.push('dau-'+d,'runs-'+d,'pv-'+d);
+  const keys=['users-total','visits-total','runs-total','pv-total','time-total'];
+  for(const d of days) keys.push('dau-'+d,'visits-'+d,'runs-'+d,'pv-'+d,'time-'+d);
 
   try{
     const vals=await fetchAll(keys,(done,total)=>{
@@ -306,19 +329,27 @@ async function load(){
     const today=istDate(0);
     renderCards({
       'users-total':vals['users-total'],
+      'visits-total':vals['visits-total'],
       'runs-total':vals['runs-total'],
       'pv-total':vals['pv-total'],
+      'time-total':vals['time-total'],
       dauToday:vals['dau-'+today],
+      visitsToday:vals['visits-'+today],
       runsToday:vals['runs-'+today],
       pvToday:vals['pv-'+today],
+      timeToday:vals['time-'+today],
     });
     const dau=days.map(d=>vals['dau-'+d]);
+    const visits=days.map(d=>vals['visits-'+d]);
     const runs=days.map(d=>vals['runs-'+d]);
     const pv=days.map(d=>vals['pv-'+d]);
+    const timeMins=days.map(d=>ticksToMins(vals['time-'+d]));
     renderChart('chartDau',days,dau);
+    renderChart('chartVisits',days,visits);
     renderChart('chartRuns',days,runs);
+    renderChart('chartTime',days,timeMins);
     renderChart('chartPv',days,pv);
-    renderTable(days,dau,runs,pv);
+    renderTable(days,dau,visits,runs,pv,timeMins);
     st.textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   }catch(e){
     st.className='err';

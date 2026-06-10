@@ -506,11 +506,19 @@ function aHit(key){
   if(!A_ON) return;
   try{fetch('https://abacus.jasoncameron.dev/hit/'+A_NS+'/'+key,{keepalive:true}).catch(()=>{});}catch(e){}
 }
-function trackVisit(){
+function trackDaily(){
+  // Safe to call repeatedly — only fires once per device per IST day.
   const today=aDate();
-  aHit('pv-total'); aHit('pv-'+today);
-  if(lsGet('freeslot_counted')!=='1'){aHit('users-total');lsSet('freeslot_counted','1');}
   if(lsGet('freeslot_lastActive')!==today){aHit('dau-'+today);lsSet('freeslot_lastActive',today);}
+}
+function trackVisitEvent(){
+  aHit('visits-total'); aHit('visits-'+aDate());
+  trackDaily();
+}
+function trackVisit(){
+  aHit('pv-total'); aHit('pv-'+aDate());
+  if(lsGet('freeslot_counted')!=='1'){aHit('users-total');lsSet('freeslot_counted','1');}
+  trackVisitEvent();
 }
 let _lastRunPing=0;
 function trackRun(){
@@ -519,6 +527,18 @@ function trackRun(){
   _lastRunPing=t;
   aHit('runs-total'); aHit('runs-'+aDate());
 }
+// A return to the tab after 5+ minutes away counts as a fresh visit
+// (and re-checks DAU in case the tab survived past midnight).
+let _hiddenAt=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){_hiddenAt=Date.now();}
+  else if(_hiddenAt && Date.now()-_hiddenAt>300000){trackVisitEvent();}
+});
+// Time on page: one tick per 30s of *visible* time; the dashboard
+// converts ticks back to minutes. Background tabs don't count.
+setInterval(()=>{
+  if(!document.hidden){aHit('time-total');aHit('time-'+aDate());}
+},30000);
 
 // ── AUTOCOMPLETE ──
 function mkAC(inpId,ddId,excludeFn,onSelect) {

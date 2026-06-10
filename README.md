@@ -4,11 +4,9 @@ FreeSlot is a single-file static app for finding overlapping free time across II
 
 Built with Codex.
 
-## Usage dashboard
+## Usage metrics
 
-Open `dashboard.html` (e.g. `https://adxtyaa.github.io/freeslot-pgp2-iiml/dashboard.html`) to see usage metrics: all-time unique users, daily active users (DAU), page loads, and free-slot lookups ("jobs run") per day.
-
-Counters are anonymous increments stored in [abacus.jasoncameron.dev](https://abacus.jasoncameron.dev) under the `freeslot-pgp2-iiml` namespace — no personal data is collected. Day buckets use IST. Tracking only runs on the deployed `github.io` site, so local development does not pollute the numbers.
+The app records anonymous usage counters (unique users, daily active users, visits, page loads, lookups run, time on page) as plain increments in [abacus.jasoncameron.dev](https://abacus.jasoncameron.dev) — no personal data is collected. Day buckets use IST. Tracking only runs on the deployed `github.io` site, so local development does not pollute the numbers.
 
 ## Course phase labels
 
